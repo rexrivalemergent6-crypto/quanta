@@ -1,0 +1,130 @@
+{
+  "theme": "dark",
+  "typography": {
+    "font_families": {
+      "display": "Cabinet Grotesk, sans-serif",
+      "body": "IBM Plex Sans, sans-serif",
+      "mono": "JetBrains Mono, monospace"
+    },
+    "hierarchy": {
+      "h1": "text-5xl sm:text-6xl font-display font-black tracking-tighter uppercase",
+      "h2": "text-3xl sm:text-4xl font-display font-bold tracking-tight",
+      "h3": "text-xl sm:text-2xl font-mono font-semibold tracking-tight text-primary",
+      "terminal_text": "text-sm sm:text-base font-mono tracking-tight",
+      "body": "text-base font-body leading-relaxed",
+      "labels": "text-xs font-mono uppercase tracking-[0.2em]"
+    },
+    "rules": [
+      "Use Monospace for all numbers, metrics, badges, and terminal readouts.",
+      "Never use Inter for headings.",
+      "Headings over 32px must use tracking-tight."
+    ]
+  },
+  "colors": {
+    "archetype": "Retro-Futurism / Terminal (Archetype 7 adapted)",
+    "palette": {
+      "background": "#050606",
+      "surface": "#0C1010",
+      "primary": "#00FF41",
+      "primary_hover": "#39FF14",
+      "secondary": "#FFB000",
+      "border": "#1A2E22",
+      "text_main": "#E2F1E8",
+      "text_muted": "#849D8E"
+    },
+    "rules": [
+      "No pure #000000; background #050606 adds a tactical dark-green void feel.",
+      "Hover states must be a lighter hue (e.g. primary_hover).",
+      "Do NOT use teal green or teal blue (#1B93A4) for dashboards. Stick to classic terminal green.",
+      "No full-screen gradients. Use solid colors or CRT scanline overlays."
+    ]
+  },
+  "visual_enhancers": {
+    "surfaces": "Retro-Futurism (Terminal Look). Containers use solid background with 1px high-contrast borders (border-primary/20).",
+    "effects": [
+      "Scanlines: CSS repeating-linear-gradient overlay on the terminal container for CRT feel.",
+      "Glow: Subtle drop-shadow on primary text or borders (drop-shadow-[0_0_8px_rgba(0,255,65,0.3)]).",
+      "Borders: Sharp edges. border-radius: 0px or max 2px."
+    ],
+    "animations": "Micro-interactions for feedback. Terminal typing effect for logs. WOTS hash chains animate filling up."
+  },
+  "components": {
+    "buttons": {
+      "primary": "Sharp corners, bg-primary text-black font-mono font-bold uppercase hover:bg-primary_hover hover:shadow-[0_0_15px_rgba(0,255,65,0.4)] transition-all",
+      "secondary": "Sharp corners, bg-transparent border border-primary text-primary hover:bg-primary/10 font-mono uppercase transition-all"
+    },
+    "cards": {
+      "style": "Flat background (surface), 1px border (border), no rounded corners. Hover: -translate-y-1, border-primary/50, subtle green shadow."
+    },
+    "badges": {
+      "style": "text-xs font-mono px-2 py-1 bg-primary/10 border border-primary/30 text-primary uppercase. For 'QUANTUM' tags, use inverted bg-primary text-black."
+    },
+    "terminal_panel": {
+      "style": "bg-black border border-primary/30 p-4 font-mono text-sm relative overflow-hidden",
+      "extras": "Add a pseudo-element for CRT scanlines."
+    }
+  },
+  "layouts": {
+    "spacing": "Generous Spacing Philosophy. Use p-6 or p-8 inside cards. gap-6 for grids.",
+    "grids": {
+      "hero": "Bento Grid Mode A (Tetris). grid-cols-1 md:grid-cols-12 gap-8. Left text/CTA col-span-5, Right terminal col-span-7.",
+      "feed": "High Density Grid Mode B. grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4. Every card stretches h-full."
+    }
+  },
+  "motion": {
+    "hover": "Explicit hover states on all interactive elements. hover:-translate-y-1 for cards.",
+    "terminal": "Typewriter effect for lines like 'pqc@bunker:~$ wots verify --live'.",
+    "progress": "Hash chains animate from '·······' to '■■■■■■■■█' using sequential state updates."
+  },
+  "accessibility": {
+    "contrast": "Ensure text-primary against surface background exceeds 4.5:1 ratio. The primary #00FF41 on #050606 passes APCA and WCAG.",
+    "focus": "focus:ring-2 focus:ring-primary focus:outline-none.",
+    "motion": "Respect prefers-reduced-motion for terminal animations."
+  },
+  "media": {
+    "image_urls": {
+      "hero_bg": {
+        "url": "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTJ8MHwxfHNlYXJjaHwxfHxncmVlbiUyMHRlcm1pbmFsJTIwY29kZSUyMHNjcmVlbnxlbnwwfHx8fDE3OTE1MzQxMzN8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Matrix green code, use at 5-10% opacity as a background texture."
+      },
+      "abstract_grid": {
+        "url": "https://images.unsplash.com/photo-1714548529197-537c1f0b6aa7?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzR8MHwxfHNlYXJjaHwyfHxhYnN0cmFjdCUyMGRhcmslMjBjeWJlciUyMGdyaWR8ZW58MHx8fHwxNzkxNTM0MTMzfDA&ixlib=rb-4.1.0&q=85",
+        "description": "Abstract dark cyber grid, alternative background."
+      },
+      "meme_coin_1": {
+        "url": "https://images.unsplash.com/photo-1652203243516-69fd116536b8?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1Mjh8MHwxfHNlYXJjaHwzfHxwaXhlbCUyMGFydCUyMGRvZ3xlbnwwfHx8fDE3OTE1MzQxMzN8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Pixel art dog placeholder for a meme coin image."
+      }
+    }
+  },
+  "3d_libraries": {
+    "recommendation": "Not strictly required for the core terminal UI, but Recharts is mandatory for the price charts. For the WOTS hashing visualization, simple CSS/React DOM manipulation is preferred over heavy WebGL to maintain the 'terminal' text-based authenticity."
+  },
+  "instructions_to_main_agent": [
+    "Build a fully functional clone of pqc.market focusing on the crypto bunker terminal vibe.",
+    "Use pure HTML/Tailwind for the landing page layouts (Hero, Terminal animations).",
+    "Use Shadcn UI for the dashboard, forms, and dialogs, but override their default styling. Remove rounded corners (rounded-none), apply sharp 1px borders, and use terminal colors.",
+    "The Live Coin feed should be a responsive grid using the provided dense grid rules.",
+    "Coin Cards must feature the tag badges (QUANTUM, leaf #N) as monospace terminal labels.",
+    "Create a functional mock 'Terminal' component that visually types out commands and displays WOTS hash chains updating over time. (Use standard HTML characters like ■ and █ for hash chains)",
+    "Implement the 'Launch a coin' form using Shadcn forms, styled with the dark terminal aesthetic.",
+    "Price charts on the detail page should use Recharts with a custom tooltip matching the terminal aesthetic (black bg, green border).",
+    "IMPORTANT: Add data-testid attributes to all interactive and key informational elements (buttons, inputs, coin cards, tabs).",
+    "Use lucide-react icons, but keep them sparse. Let the monospace typography do the heavy lifting.",
+    "The workspace uses .js files, NOT .tsx files. Write React components using standard .jsx/.js syntax and standard prop-types if necessary, but keep it strictly Javascript.",
+    "Always set a solid background for sticky headers or dropdowns. Never use a complete transparent background."
+  ],
+  "UNIVERSAL_GUIDELINES_FOR_MAIN_AGENT": [
+    "Avoid generic, 'on distribution' AI slop outputs. Emphasize the Retro-Futurism/Terminal bunker aesthetic. Make it look like a highly classified crypto launchpad.",
+    "Do NOT center align the app container. Left-align dense data, right-align numbers/metrics where appropriate.",
+    "Never use generic emojis. Use actual technical icons or ASCII characters.",
+    "Create depth through layered design (ambient + direct shadow). E.g., glowing green text shadows.",
+    "Apply transitions specifically to interactive properties (e.g., transition-colors, transition-transform), NEVER use 'transition-all'.",
+    "Prioritize pre-existing Shadcn components, heavily adapting their appearance to fit the strict sharp-edge, neon-on-black theme."
+  ],
+  "GENERAL_UI_UX_DESIGN_GUIDELINES": {
+    "spacing": "2-3x more spacing than feels comfortable. Empty space is critical to making dense terminal data digestible.",
+    "alignment": "Optical alignment over geometrical. Left-align data and text. Right-align numerical values in tables/lists.",
+    "feedback": "Every user action (click, hover) must have an immediate visual change (color invert, border glow)."
+  }
+}

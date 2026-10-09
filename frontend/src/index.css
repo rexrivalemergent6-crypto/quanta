@@ -1,0 +1,81 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap');
+@import url('https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@700,800,900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    :root {
+        --background: 180 10% 2%;
+        --foreground: 141 36% 92%;
+        --card: 180 16% 5%;
+        --card-foreground: 141 36% 92%;
+        --popover: 180 18% 4%;
+        --popover-foreground: 141 36% 92%;
+        --primary: 135 100% 50%;
+        --primary-foreground: 0 0% 0%;
+        --secondary: 180 12% 9%;
+        --secondary-foreground: 141 36% 92%;
+        --muted: 180 12% 9%;
+        --muted-foreground: 146 11% 57%;
+        --accent: 135 100% 50%;
+        --accent-foreground: 0 0% 0%;
+        --destructive: 0 84% 55%;
+        --destructive-foreground: 0 0% 100%;
+        --border: 145 28% 14%;
+        --input: 145 28% 14%;
+        --ring: 135 100% 50%;
+        --amber: 41 100% 50%;
+        --radius: 0rem;
+    }
+}
+
+@layer base {
+    * {
+        @apply border-border;
+    }
+    html {
+        scrollbar-color: hsl(var(--primary) / 0.4) transparent;
+    }
+    body {
+        @apply bg-background text-foreground;
+        font-family: 'IBM Plex Sans', sans-serif;
+        -webkit-font-smoothing: antialiased;
+        background-image: radial-gradient(circle at 15% -10%, hsl(135 100% 50% / 0.06), transparent 40%),
+            radial-gradient(circle at 90% 0%, hsl(41 100% 50% / 0.04), transparent 35%);
+        background-attachment: fixed;
+    }
+    ::selection {
+        background: hsl(var(--primary) / 0.25);
+        color: hsl(var(--primary));
+    }
+    ::-webkit-scrollbar { width: 9px; height: 9px; }
+    ::-webkit-scrollbar-thumb { background: hsl(var(--primary) / 0.35); }
+    ::-webkit-scrollbar-track { background: transparent; }
+}
+
+@layer utilities {
+    .font-display { font-family: 'Cabinet Grotesk', sans-serif; }
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+    .text-glow { text-shadow: 0 0 10px hsl(135 100% 50% / 0.5); }
+    .text-glow-amber { text-shadow: 0 0 10px hsl(41 100% 50% / 0.5); }
+    .border-glow { box-shadow: 0 0 18px hsl(135 100% 50% / 0.22); }
+    .scanlines { position: relative; }
+    .scanlines::after {
+        content: '';
+        position: absolute; inset: 0; pointer-events: none;
+        background: repeating-linear-gradient(0deg,
+            hsl(135 100% 50% / 0.045) 0px, hsl(135 100% 50% / 0.045) 1px,
+            transparent 1px, transparent 3px);
+        mix-blend-mode: screen;
+    }
+    .grid-dots {
+        background-image: radial-gradient(hsl(135 100% 50% / 0.08) 1px, transparent 1px);
+        background-size: 22px 22px;
+    }
+    @keyframes blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+    .cursor-blink { animation: blink 1s step-end infinite; }
+    @keyframes fadeup { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .anim-fadeup { animation: fadeup 0.5s ease forwards; }
+}
