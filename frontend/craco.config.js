@@ -110,6 +110,33 @@ let webpackConfig = {
     },
     configure: (webpackConfig) => {
 
+      // Polyfills required by @solana/web3.js in the browser
+      const webpack = require("webpack");
+      webpackConfig.resolve = webpackConfig.resolve || {};
+      webpackConfig.resolve.fallback = {
+        ...(webpackConfig.resolve.fallback || {}),
+        buffer: require.resolve("buffer/"),
+        crypto: false,
+        stream: false,
+        path: false,
+        os: false,
+        http: false,
+        https: false,
+        zlib: false,
+        url: false,
+        assert: false,
+        fs: false,
+        net: false,
+        tls: false,
+      };
+      webpackConfig.plugins.push(
+        new webpack.ProvidePlugin({ Buffer: ["buffer", "Buffer"] }),
+      );
+      webpackConfig.ignoreWarnings = [
+        ...(webpackConfig.ignoreWarnings || []),
+        /Failed to parse source map/,
+      ];
+
       // Add ignored patterns to reduce watched directories
         webpackConfig.watchOptions = {
           ...webpackConfig.watchOptions,

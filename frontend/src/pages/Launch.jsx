@@ -1,8 +1,19 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { launchCoin } from "../lib/api";
-import { Loader2, Rocket, ShieldCheck, ArrowRight } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Connection, Keypair, VersionedTransaction } from "@solana/web3.js";
+import { useWallet } from "@/context/WalletContext";
+import { WotsTerminal } from "@/components/WotsTerminal";
 import { toast } from "sonner";
+import {
+  Shield, Wallet, Rocket, Loader2, ShieldCheck, ExternalLink, Upload, X, Copy, AlertTriangle,
+} from "lucide-react";
+
+const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+const RPC = process.env.REACT_APP_SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
+
+const short = (s, n = 4) => (s ? `${s.slice(0, n)}…${s.slice(-n)}` : "");
+
+const inputCls =
+  "mt-1 w-full border border-border bg-background px-3 py-2.5 font-mono text-sm text-foreground focus:border-primary focus:outline-none placeholder:text-muted-foreground/40";
 
 const Field = ({ label, children, hint }) => (
   <div>
@@ -12,139 +23,330 @@ const Field = ({ label, children, hint }) => (
   </div>
 );
 
-const inputCls =
-  "mt-1 w-full border border-border bg-background px-3 py-2.5 font-mono text-sm text-foreground focus:border-primary focus:outline-none placeholder:text-muted-foreground/40";
-
 export default function Launch() {
-  const nav = useNavigate();
+  const { publicKey, connected, connecting, connect, disconnect, provider, hasPhantom } = useWallet();
   const [form, setForm] = useState({
-    name: "", symbol: "", description: "", image: "",
-    twitter: "", telegram: "", website: "", fee_pct: 1, quantum: true,
+    name: "", symbol: "", description: "",
+    twitter: "", telegram: "", website: "",
+    amount: "0.01", slippage: "10", priorityFee: "0.00005",
   });
-  const [submitting, setSubmitting] = useState(false);
+  const [file, setFile] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [log, setLog] = useState([]);
   const [result, setResult] = useState(null);
-
+  const logRef = useRef(null);
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
-  const submit = async () => {
-    if (!form.name.trim() || !form.symbol.trim()) return toast.error("Name and ticker are required");
-    setSubmitting(true);
+  const addLog = (msg, kind = "info") =>
+    setLog((l) => [...l, { msg, kind, t: new Date().toLocaleTimeString() }]);
+
+  useEffect(() => {
+    logRef.current?.scrollTo(0, logRef.current.scrollHeight);
+  }, [log]);
+
+  const onFile = (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setFile(f);
+    setPreview(URL.createObjectURL(f));
+  };
+
+  const connectWallet = async () => {
     try {
-      const res = await launchCoin({ ...form, fee_pct: parseFloat(form.fee_pct) || 1 });
-      setResult(res);
-      toast.success("Coin launched", { description: `WOTS attestation anchored · leaf #${res.attestation.leaf_index ?? ""}` });
-    } catch {
-      toast.error("Launch failed");
-    } finally {
-      setSubmitting(false);
+      await connect();
+      toast.success("Phantom connected");
+    } catch (e) {
+      toast.error(e.message || "Connection failed");
     }
   };
 
-  if (result) {
-    const a = result.attestation;
-    return (
-      <div className="mx-auto max-w-2xl px-4 py-16 sm:px-6">
-        <div className="scanlines border border-primary/40 bg-black p-6 border-glow">
-          <div className="flex items-center gap-2 font-mono text-sm uppercase tracking-[0.15em] text-primary">
-            <ShieldCheck size={16} /> Launch signed &amp; anchored
-          </div>
-          <h1 className="mt-4 font-display text-3xl font-bold tracking-tight text-foreground">
-            {result.coin.name} <span className="text-muted-foreground">${result.coin.symbol}</span>
-          </h1>
-          <div className="mt-5 space-y-2 font-mono text-xs">
-            <KV k="mint" v={result.mint} />
-            <KV k="merkle leaf" v={`#${a.leaf_index} · ${a.leaf}`} />
-            <KV k="registered root" v={a.root} accent />
-            <KV k="signature" v={`${a.signature_bytes} bytes · WOTS+ / SHA-256`} />
-          </div>
-          <div className="mt-6 flex gap-3">
-            <button
-              data-testid="view-coin-btn"
-              onClick={() => nav(`/coin/q/${result.mint}`)}
-              className="flex items-center gap-2 border border-primary bg-primary px-5 py-3 font-mono text-xs font-bold uppercase tracking-[0.15em] text-black transition-all hover:bg-primary/80"
-            >
-              View coin <ArrowRight size={14} />
-            </button>
-            <button
-              onClick={() => { setResult(null); setForm({ name: "", symbol: "", description: "", image: "", twitter: "", telegram: "", website: "", fee_pct: 1, quantum: true }); }}
-              className="border border-primary/40 px-5 py-3 font-mono text-xs uppercase tracking-[0.15em] text-primary transition-colors hover:bg-primary/10"
-            >
-              Launch another
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const launch = async () => {
+    if (!connected) return toast.error("Connect Phantom first");
+    if (!form.name.trim() || !form.symbol.trim()) return toast.error("Name and ticker are required");
+    if (!file) return toast.error("Choose a token image");
+    setBusy(true);
+    setResult(null);
+    setLog([]);
+    try {
+      // 1. metadata -> IPFS
+      addLog("uploading image + metadata to IPFS…");
+      const fd = new FormData();
+      fd.append("name", form.name);
+      fd.append("symbol", form.symbol);
+      fd.append("description", form.description);
+      fd.append("twitter", form.twitter);
+      fd.append("telegram", form.telegram);
+      fd.append("website", form.website);
+      fd.append("file", file);
+      const metaRes = await fetch(`${API}/metadata`, { method: "POST", body: fd });
+      if (!metaRes.ok) throw new Error(`metadata: ${await metaRes.text()}`);
+      const meta = await metaRes.json();
+      addLog(`metadata uri -> ${meta.metadataUri}`, "ok");
+
+      // 2. new mint keypair (secret stays in this tab only)
+      const mint = Keypair.generate();
+      addLog(`mint keypair -> ${mint.publicKey.toBase58()}`);
+
+      // 3. build create tx via PumpPortal
+      addLog("requesting create transaction from PumpPortal…");
+      const tradeRes = await fetch(`${API}/trade-local`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          publicKey: publicKey,
+          action: "create",
+          tokenMetadata: { name: form.name, symbol: form.symbol, uri: meta.metadataUri },
+          mint: mint.publicKey.toBase58(),
+          denominatedInSol: "true",
+          amount: Number(form.amount) || 0,
+          slippage: Number(form.slippage) || 10,
+          priorityFee: Number(form.priorityFee) || 0.00005,
+          pool: "pump",
+        }),
+      });
+      if (!tradeRes.ok) throw new Error(`pumpportal: ${await tradeRes.text()}`);
+      const buf = new Uint8Array(await tradeRes.arrayBuffer());
+      const tx = VersionedTransaction.deserialize(buf);
+      addLog("signing with mint key…");
+      tx.sign([mint]);
+
+      // 4. Phantom signs + broadcasts
+      addLog("approve the transaction in Phantom…", "warn");
+      const connection = new Connection(RPC, "confirmed");
+      let signature;
+      if (provider.signAndSendTransaction) {
+        const res = await provider.signAndSendTransaction(tx);
+        signature = res.signature || res;
+      } else {
+        const signed = await provider.signTransaction(tx);
+        signature = await connection.sendRawTransaction(signed.serialize(), {
+          skipPreflight: false,
+          maxRetries: 3,
+        });
+      }
+      addLog(`submitted -> ${signature}`, "ok");
+      addLog("confirming on-chain…");
+      const latest = await connection.getLatestBlockhash("confirmed");
+      await connection.confirmTransaction({ signature, ...latest }, "confirmed");
+      addLog("confirmed ✓ coin is live on pump.fun", "ok");
+
+      // 5. record + attestation
+      const rec = await fetch(`${API}/launches`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mint: mint.publicKey.toBase58(),
+          signature,
+          creator: publicKey,
+          name: form.name,
+          symbol: form.symbol,
+          metadataUri: meta.metadataUri,
+          image: meta.metadata?.image || preview,
+          network: "mainnet-beta",
+        }),
+      }).then((r) => r.json());
+
+      setResult({ mint: mint.publicKey.toBase58(), signature, attestation: rec.attestation, image: meta.metadata?.image });
+      toast.success("Coin launched on mainnet", { description: `${form.name} ($${form.symbol})` });
+    } catch (e) {
+      const msg = e?.message || String(e);
+      addLog(`error: ${msg}`, "err");
+      toast.error(msg.length > 120 ? msg.slice(0, 120) + "…" : msg);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-12 sm:px-6">
-      <div className="flex items-center gap-2 font-mono text-xs uppercase tracking-[0.2em] text-primary">
-        <Rocket size={14} /> New launch
-      </div>
-      <h1 className="mt-3 font-display text-4xl font-black uppercase tracking-tighter text-foreground">
-        Launch a <span className="text-primary text-glow">quantum-safe</span> coin
-      </h1>
-      <p className="mt-3 font-sans text-sm text-muted-foreground">
-        A one-time WOTS key is derived from your launch and compressed into a Merkle identity. The root is
-        registered as your coin's post-quantum anchor.
-      </p>
-
-      <div className="mt-8 space-y-5 border border-border bg-card p-6">
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-          <Field label="Name *">
-            <input data-testid="launch-name" className={inputCls} value={form.name} onChange={set("name")} placeholder="Quantum Doge" />
-          </Field>
-          <Field label="Ticker *">
-            <input data-testid="launch-symbol" className={inputCls} value={form.symbol} onChange={set("symbol")} placeholder="QDOGE" />
-          </Field>
-        </div>
-        <Field label="Description">
-          <textarea data-testid="launch-description" rows={3} className={inputCls} value={form.description} onChange={set("description")} placeholder="Post-quantum meme reserve…" />
-        </Field>
-        <Field label="Image URL" hint="Paste a hosted image / IPFS link">
-          <input data-testid="launch-image" className={inputCls} value={form.image} onChange={set("image")} placeholder="https://… / ipfs://…" />
-        </Field>
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
-          <Field label="Twitter">
-            <input className={inputCls} value={form.twitter} onChange={set("twitter")} placeholder="https://x.com/…" />
-          </Field>
-          <Field label="Telegram">
-            <input className={inputCls} value={form.telegram} onChange={set("telegram")} placeholder="https://t.me/…" />
-          </Field>
-          <Field label="Website">
-            <input className={inputCls} value={form.website} onChange={set("website")} placeholder="https://…" />
-          </Field>
-        </div>
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-          <Field label="Creator fee %">
-            <input data-testid="launch-fee" type="number" step="0.1" min="0" className={inputCls} value={form.fee_pct} onChange={set("fee_pct")} />
-          </Field>
-          <Field label="Attestation mode">
-            <div className="mt-1 flex border border-border">
-              <button onClick={() => setForm((f) => ({ ...f, quantum: true }))} className={`flex-1 py-2.5 font-mono text-xs uppercase ${form.quantum ? "bg-primary text-black" : "text-muted-foreground"}`}>Quantum</button>
-              <button onClick={() => setForm((f) => ({ ...f, quantum: false }))} className={`flex-1 py-2.5 font-mono text-xs uppercase ${!form.quantum ? "bg-primary text-black" : "text-muted-foreground"}`}>Hybrid</button>
+    <div className="min-h-screen">
+      {/* top bar */}
+      <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur-md">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center border border-primary/40 bg-primary/10 text-primary">
+              <Shield size={16} />
             </div>
-          </Field>
+            <span className="font-mono text-base font-bold tracking-tight">
+              pqc<span className="text-primary text-glow">.market</span>
+              <span className="ml-2 hidden font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground sm:inline">launch terminal</span>
+            </span>
+          </div>
+          {connected ? (
+            <button
+              data-testid="wallet-button"
+              onClick={disconnect}
+              className="flex items-center gap-2 border border-primary/40 bg-primary/5 px-3 py-2 font-mono text-xs text-primary transition-colors hover:bg-primary/10"
+            >
+              <span className="inline-block h-2 w-2 animate-pulse bg-primary" /> {short(publicKey)}
+              <X size={12} />
+            </button>
+          ) : (
+            <button
+              data-testid="wallet-button"
+              onClick={connectWallet}
+              disabled={connecting}
+              className="flex items-center gap-2 border border-primary bg-primary px-4 py-2 font-mono text-xs font-bold uppercase tracking-[0.15em] text-black transition-all hover:bg-primary/80 disabled:opacity-50"
+            >
+              {connecting ? <Loader2 size={14} className="animate-spin" /> : <Wallet size={14} />}
+              {hasPhantom ? "Connect Phantom" : "Get Phantom"}
+            </button>
+          )}
+        </div>
+      </header>
+
+      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+        <div className="flex items-center gap-2 font-mono text-xs uppercase tracking-[0.2em] text-primary">
+          <Rocket size={14} /> Real launch · pump.fun · mainnet
+        </div>
+        <h1 className="mt-3 font-display text-4xl font-black uppercase leading-[0.95] tracking-tighter sm:text-5xl">
+          Launch a coin that <span className="text-primary text-glow">survives Q-day.</span>
+        </h1>
+        <p className="mt-3 max-w-xl font-sans text-sm text-muted-foreground">
+          Your Phantom wallet signs and pays. The mint is created on pump.fun via PumpPortal — no private keys
+          ever touch our server — and anchored with a hash-based WOTS + Merkle attestation.
+        </p>
+
+        <div className="mt-6 flex items-center gap-2 border border-amber/40 bg-amber/5 px-4 py-2.5 font-mono text-xs text-amber">
+          <AlertTriangle size={14} /> Mainnet · real SOL. Dev-buy + fees are spent from your wallet.
         </div>
 
-        <button
-          data-testid="launch-submit"
-          onClick={submit}
-          disabled={submitting}
-          className="flex w-full items-center justify-center gap-2 border border-primary bg-primary py-3.5 font-mono text-sm font-bold uppercase tracking-[0.15em] text-black transition-all hover:bg-primary/80 hover:shadow-[0_0_18px_hsl(135_100%_50%/0.45)] disabled:opacity-50"
-        >
-          {submitting ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
-          Sign &amp; launch
-        </button>
+        <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
+          {/* form */}
+          <div className="space-y-5 border border-border bg-card p-6">
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+              <Field label="Name *">
+                <input data-testid="launch-name" className={inputCls} value={form.name} onChange={set("name")} placeholder="Quantum Doge" />
+              </Field>
+              <Field label="Ticker *">
+                <input data-testid="launch-symbol" className={inputCls} value={form.symbol} maxLength={10} onChange={set("symbol")} placeholder="QDOGE" />
+              </Field>
+            </div>
+
+            <Field label="Image *" hint="PNG / JPG / GIF / WEBP · max 10MB">
+              <div className="mt-1 flex items-center gap-3">
+                <label className="flex cursor-pointer items-center gap-2 border border-border bg-background px-3 py-2.5 font-mono text-xs text-muted-foreground transition-colors hover:border-primary hover:text-primary">
+                  <Upload size={14} /> Choose file
+                  <input data-testid="launch-image" type="file" accept="image/png,image/jpeg,image/gif,image/webp" className="hidden" onChange={onFile} />
+                </label>
+                {preview && <img src={preview} alt="preview" className="h-11 w-11 border border-border object-cover" />}
+                {file && <span className="truncate font-mono text-[11px] text-muted-foreground">{file.name}</span>}
+              </div>
+            </Field>
+
+            <Field label="Description">
+              <textarea data-testid="launch-description" rows={3} className={inputCls} value={form.description} onChange={set("description")} placeholder="Post-quantum meme reserve…" />
+            </Field>
+
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+              <Field label="Twitter">
+                <input className={inputCls} value={form.twitter} onChange={set("twitter")} placeholder="https://x.com/…" />
+              </Field>
+              <Field label="Telegram">
+                <input className={inputCls} value={form.telegram} onChange={set("telegram")} placeholder="https://t.me/…" />
+              </Field>
+              <Field label="Website">
+                <input className={inputCls} value={form.website} onChange={set("website")} placeholder="https://…" />
+              </Field>
+            </div>
+
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+              <Field label="Dev buy (SOL)" hint="initial buy">
+                <input data-testid="launch-amount" type="number" step="0.001" min="0" className={inputCls} value={form.amount} onChange={set("amount")} />
+              </Field>
+              <Field label="Slippage %">
+                <input type="number" step="0.5" min="0" className={inputCls} value={form.slippage} onChange={set("slippage")} />
+              </Field>
+              <Field label="Priority fee (SOL)">
+                <input type="number" step="0.00001" min="0" className={inputCls} value={form.priorityFee} onChange={set("priorityFee")} />
+              </Field>
+            </div>
+
+            <button
+              data-testid="launch-submit"
+              onClick={launch}
+              disabled={busy || !connected}
+              className="flex w-full items-center justify-center gap-2 border border-primary bg-primary py-3.5 font-mono text-sm font-bold uppercase tracking-[0.15em] text-black transition-all hover:bg-primary/80 hover:shadow-[0_0_18px_hsl(135_100%_50%/0.45)] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {busy ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
+              {connected ? "Sign & launch on mainnet" : "Connect Phantom to launch"}
+            </button>
+          </div>
+
+          {/* right: terminal / result */}
+          <div className="space-y-6">
+            {result ? (
+              <div data-testid="launch-result" className="scanlines border border-primary/40 bg-black p-6 border-glow">
+                <div className="flex items-center gap-2 font-mono text-sm uppercase tracking-[0.15em] text-primary">
+                  <ShieldCheck size={16} /> Live on mainnet
+                </div>
+                <div className="mt-4 flex items-center gap-3">
+                  {result.image && <img src={result.image} alt="" referrerPolicy="no-referrer" className="h-12 w-12 border border-border object-cover" />}
+                  <div className="font-display text-2xl font-bold">{form.name} <span className="text-muted-foreground">${form.symbol}</span></div>
+                </div>
+                <div className="mt-5 space-y-2 font-mono text-xs">
+                  <KV k="mint" v={result.mint} onCopy />
+                  <KV k="tx" v={result.signature} onCopy />
+                  {result.attestation && <>
+                    <KV k="merkle leaf" v={`#${result.attestation.leaf_index} · ${short(result.attestation.leaf, 8)}`} />
+                    <KV k="registered root" v={short(result.attestation.root, 10)} accent />
+                    <KV k="signature" v={`${result.attestation.signature_bytes} B · WOTS+ / SHA-256`} />
+                  </>}
+                </div>
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <a data-testid="view-pump" href={`https://pump.fun/coin/${result.mint}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 border border-primary bg-primary px-4 py-2.5 font-mono text-xs font-bold uppercase tracking-[0.15em] text-black transition-all hover:bg-primary/80">
+                    View on pump.fun <ExternalLink size={13} />
+                  </a>
+                  <a href={`https://solscan.io/tx/${result.signature}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 border border-primary/40 px-4 py-2.5 font-mono text-xs uppercase tracking-[0.15em] text-primary transition-colors hover:bg-primary/10">
+                    Solscan <ExternalLink size={13} />
+                  </a>
+                  <button onClick={() => { setResult(null); setLog([]); }} className="border border-border px-4 py-2.5 font-mono text-xs uppercase tracking-[0.15em] text-muted-foreground transition-colors hover:text-primary">
+                    Launch another
+                  </button>
+                </div>
+              </div>
+            ) : busy || log.length ? (
+              <div className="scanlines h-full border border-primary/30 bg-black p-4 font-mono text-[11px] sm:text-xs">
+                <div className="mb-2 flex items-center justify-between border-b border-primary/20 pb-2 text-muted-foreground">
+                  <span>pqc@bunker: ~/launch</span>
+                  <span className="text-secondary">mainnet-beta</span>
+                </div>
+                <div ref={logRef} className="max-h-[520px] space-y-1 overflow-auto">
+                  {log.map((l, i) => (
+                    <div key={i} className="flex gap-2">
+                      <span className="shrink-0 text-muted-foreground/50">{l.t}</span>
+                      <span className={
+                        l.kind === "ok" ? "text-primary" :
+                        l.kind === "err" ? "text-destructive" :
+                        l.kind === "warn" ? "text-amber" : "text-foreground/80"
+                      }>
+                        {l.kind === "ok" ? "✓ " : l.kind === "err" ? "✗ " : "» "}{l.msg}
+                      </span>
+                    </div>
+                  ))}
+                  {busy && <div className="text-primary">▊<span className="cursor-blink">_</span></div>}
+                </div>
+              </div>
+            ) : (
+              <WotsTerminal />
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
-const KV = ({ k, v, accent }) => (
-  <div className="flex flex-col gap-0.5 border-b border-border/50 pb-2 sm:flex-row sm:items-center sm:justify-between">
+const KV = ({ k, v, accent, onCopy }) => (
+  <div className="flex items-center justify-between gap-3 border-b border-border/50 pb-2">
     <span className="text-muted-foreground">{k}</span>
-    <span className={`break-all ${accent ? "text-primary" : "text-foreground"}`}>{v}</span>
+    <span className="flex items-center gap-1.5">
+      <span className={`truncate ${accent ? "text-primary" : "text-foreground"}`}>{v}</span>
+      {onCopy && (
+        <button onClick={() => { navigator.clipboard.writeText(v); toast.success(`${k} copied`); }} className="text-muted-foreground hover:text-primary">
+          <Copy size={11} />
+        </button>
+      )}
+    </span>
   </div>
 );
