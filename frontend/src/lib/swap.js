@@ -3,8 +3,8 @@ const BACKEND = process.env.REACT_APP_BACKEND_URL;
 const DS = `${BACKEND}/api/ds`;
 
 export const METHODS = {
-  private: { id: "private", label: "Private route", sub: "Best live rate", provider: "HoudiniSwap", feePct: 0.009, eta: [4, 12] },
-  privacy: { id: "privacy", label: "Privacy swap", sub: "NEAR Intents", provider: "NEAR Intents 1Click", feePct: 0.006, eta: [2, 7] },
+  private: { id: "private", label: "Private route", sub: "Shielded liquidity", provider: "AEGIS Shield", feePct: 0.009, eta: [4, 12] },
+  privacy: { id: "privacy", label: "Shielded swap", sub: "Intent relay", provider: "AEGIS Relay", feePct: 0.006, eta: [2, 7] },
 };
 
 // Cross-chain asset universe for the selector + engine.

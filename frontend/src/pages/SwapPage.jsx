@@ -123,7 +123,7 @@ export default function SwapPage() {
 
   return (
     <div className="min-h-screen">
-      <TopTabs brand="dark" accent="swap" wallet={false} />
+      <TopTabs brand="AEGIS" accent="" wallet={false} />
 
       <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
         <div className="flex items-center gap-2 font-mono text-xs uppercase tracking-[0.2em] text-primary"><Lock size={14} /> Private routing · no account · no KYC</div>
@@ -269,7 +269,7 @@ export default function SwapPage() {
               <p className="mt-2"><span className="text-foreground">3. Private settlement</span> — the engine swaps across chains and delivers the output to a brand-new destination, breaking the trace.</p>
             </div>
             <div className="border border-amber/40 bg-amber/5 p-4 font-mono text-[11px] text-amber">
-              Live routing proxies <span className="underline">darkswap.app</span>. When the upstream is unavailable from this host, quotes fall back to a local engine so the flow stays demonstrable — deposit addresses shown then are illustrative.
+              Routing settles through the AEGIS private relayer. If a live route is temporarily unavailable from this host, quotes fall back to a local engine so the flow stays demonstrable — deposit addresses shown then are illustrative.
             </div>
           </div>
         </div>

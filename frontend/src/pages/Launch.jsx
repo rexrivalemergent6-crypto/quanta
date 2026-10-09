@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Connection, Keypair, VersionedTransaction } from "@solana/web3.js";
 import { useWallet } from "@/context/WalletContext";
 import { TopTabs } from "@/components/TopTabs";
-import { WotsTerminal } from "@/components/WotsTerminal";
+import { AttestationPreview } from "@/components/AttestationPreview";
 import { toast } from "sonner";
 import {
   Rocket, Loader2, ShieldCheck, ExternalLink, Upload, Copy, AlertTriangle,
@@ -11,7 +11,7 @@ import {
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const RPC = process.env.REACT_APP_SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
 const short = (s, n = 4) => (s ? `${s.slice(0, n)}…${s.slice(-n)}` : "");
-const inputCls = "mt-1 w-full border border-border bg-background px-3 py-2.5 font-mono text-sm text-foreground focus:border-primary focus:outline-none placeholder:text-muted-foreground/40";
+const inputCls = "mt-1 w-full rounded-lg border border-border bg-background/60 px-3 py-2.5 font-mono text-sm text-foreground transition-colors focus:border-primary/60 focus:outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-muted-foreground/40";
 
 const Field = ({ label, children, hint }) => (
   <div>
@@ -38,7 +38,7 @@ export default function Launch() {
   const onFile = (e) => { const f = e.target.files?.[0]; if (!f) return; setFile(f); setPreview(URL.createObjectURL(f)); };
 
   const launch = async () => {
-    if (!connected) return toast.error("Connect Phantom first");
+    if (!connected) return toast.error("Connect your wallet first");
     if (!form.name.trim() || !form.symbol.trim()) return toast.error("Name and ticker are required");
     if (!file) return toast.error("Choose a token image");
     setBusy(true); setResult(null); setLog([]);
@@ -55,7 +55,7 @@ export default function Launch() {
       const mint = Keypair.generate();
       addLog(`mint -> ${mint.publicKey.toBase58()}`);
 
-      addLog("requesting create transaction from PumpPortal…");
+      addLog("building the launch transaction…");
       const tradeRes = await fetch(`${API}/trade-local`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -84,7 +84,7 @@ export default function Launch() {
       addLog(`submitted -> ${signature}`, "ok");
       const latest = await connection.getLatestBlockhash("confirmed");
       await connection.confirmTransaction({ signature, ...latest }, "confirmed");
-      addLog("confirmed ✓ coin is live on pump.fun", "ok");
+      addLog("confirmed ✓ token is live on-chain", "ok");
 
       const rec = await fetch(`${API}/launches`, {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -102,15 +102,15 @@ export default function Launch() {
 
   return (
     <div className="min-h-screen">
-      <TopTabs brand="quantum" accent=".launch" />
-      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-        <div className="flex items-center gap-2 font-mono text-xs uppercase tracking-[0.2em] text-primary"><Rocket size={14} /> Real launch · pump.fun · mainnet</div>
-        <h1 className="mt-3 font-display text-4xl font-black uppercase leading-[0.95] tracking-tighter sm:text-5xl">Launch a coin that <span className="text-primary text-glow">survives Q-day.</span></h1>
-        <p className="mt-3 max-w-xl font-sans text-sm text-muted-foreground">Your Phantom wallet signs and pays. The mint is created on pump.fun via PumpPortal — no private keys ever touch our server — and anchored with a hash-based WOTS + Merkle attestation.</p>
-        <div className="mt-6 flex items-center gap-2 border border-amber/40 bg-amber/5 px-4 py-2.5 font-mono text-xs text-amber"><AlertTriangle size={14} /> Mainnet · real SOL. Dev-buy + fees are spent from your wallet.</div>
+      <TopTabs brand="AEGIS" accent="" />
+      <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
+        <div className="flex items-center gap-2 font-mono text-xs uppercase tracking-[0.25em] text-primary"><Rocket size={13} /> quantum-safe launchpad · mainnet</div>
+        <h1 className="mt-4 font-display text-4xl font-semibold leading-[1.02] tracking-tight sm:text-5xl">Launch a token that<br /><span className="text-primary text-glow">survives Q-day.</span></h1>
+        <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted-foreground">Your wallet signs and pays. The mint is created on-chain and bound to a hash-based WOTS + Merkle attestation — a post-quantum fingerprint no elliptic-curve break can forge.</p>
+        <div className="mt-6 flex items-center gap-2 rounded-lg border border-amber/30 bg-amber/5 px-4 py-2.5 font-mono text-xs text-amber"><AlertTriangle size={14} /> Mainnet · real SOL. Dev-buy + network fees are spent from your wallet.</div>
 
-        <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <div className="space-y-5 border border-border bg-card p-6">
+        <div className="mt-10 grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div className="card-premium space-y-5 rounded-xl p-6">
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
               <Field label="Name *"><input data-testid="launch-name" className={inputCls} value={form.name} onChange={set("name")} placeholder="Quantum Doge" /></Field>
               <Field label="Ticker *"><input data-testid="launch-symbol" className={inputCls} value={form.symbol} maxLength={10} onChange={set("symbol")} placeholder="QDOGE" /></Field>
@@ -136,8 +136,8 @@ export default function Launch() {
               <Field label="Slippage %"><input type="number" step="0.5" min="0" className={inputCls} value={form.slippage} onChange={set("slippage")} /></Field>
               <Field label="Priority fee (SOL)"><input type="number" step="0.00001" min="0" className={inputCls} value={form.priorityFee} onChange={set("priorityFee")} /></Field>
             </div>
-            <button data-testid="launch-submit" onClick={launch} disabled={busy || !connected} className="flex w-full items-center justify-center gap-2 border border-primary bg-primary py-3.5 font-mono text-sm font-bold uppercase tracking-[0.15em] text-black transition-all hover:bg-primary/80 hover:shadow-[0_0_18px_hsl(135_100%_50%/0.45)] disabled:cursor-not-allowed disabled:opacity-50">
-              {busy ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}{connected ? "Sign & launch on mainnet" : "Connect Phantom to launch"}
+            <button data-testid="launch-submit" onClick={launch} disabled={busy || !connected} className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-3.5 font-mono text-sm font-semibold uppercase tracking-[0.15em] text-primary-foreground transition-all hover:opacity-90 hover:shadow-[0_10px_40px_-12px_hsl(158_84%_46%/0.5)] disabled:cursor-not-allowed disabled:opacity-50">
+              {busy ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}{connected ? "Sign & launch on mainnet" : "Connect wallet to launch"}
             </button>
           </div>
 
@@ -158,14 +158,14 @@ export default function Launch() {
                   </>}
                 </div>
                 <div className="mt-6 flex flex-wrap gap-3">
-                  <a data-testid="view-pump" href={`https://pump.fun/coin/${result.mint}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 border border-primary bg-primary px-4 py-2.5 font-mono text-xs font-bold uppercase tracking-[0.15em] text-black hover:bg-primary/80">View on pump.fun <ExternalLink size={13} /></a>
+                  <a data-testid="view-pump" href={`https://pump.fun/coin/${result.mint}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-md bg-primary px-4 py-2.5 font-mono text-xs font-semibold uppercase tracking-[0.15em] text-primary-foreground hover:opacity-90">View token <ExternalLink size={13} /></a>
                   <a href={`https://solscan.io/tx/${result.signature}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 border border-primary/40 px-4 py-2.5 font-mono text-xs uppercase tracking-[0.15em] text-primary hover:bg-primary/10">Solscan <ExternalLink size={13} /></a>
                   <button onClick={() => { setResult(null); setLog([]); }} className="border border-border px-4 py-2.5 font-mono text-xs uppercase tracking-[0.15em] text-muted-foreground hover:text-primary">Launch another</button>
                 </div>
               </div>
             ) : busy || log.length ? (
               <div className="scanlines h-full border border-primary/30 bg-black p-4 font-mono text-[11px] sm:text-xs">
-                <div className="mb-2 flex items-center justify-between border-b border-primary/20 pb-2 text-muted-foreground"><span>pqc@bunker: ~/launch</span><span className="text-secondary">mainnet-beta</span></div>
+                <div className="mb-2 flex items-center justify-between border-b border-primary/20 pb-2 text-muted-foreground"><span>aegis@node: ~/launch</span><span className="text-primary/70">mainnet</span></div>
                 <div ref={logRef} className="max-h-[520px] space-y-1 overflow-auto">
                   {log.map((l, i) => (
                     <div key={i} className="flex gap-2">
@@ -176,7 +176,7 @@ export default function Launch() {
                   {busy && <div className="text-primary">▊<span className="cursor-blink">_</span></div>}
                 </div>
               </div>
-            ) : (<WotsTerminal />)}
+            ) : (<AttestationPreview form={form} preview={preview} />)}
           </div>
         </div>
       </div>
