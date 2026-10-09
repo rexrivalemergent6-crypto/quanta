@@ -1,0 +1,20 @@
+{
+  "summary": "Tested pqc.market launcher backend (metadata, trade-local, launches) and frontend launch page. All 6 pytest tests pass against real pump.fun IPFS + PumpPortal upstreams. Frontend renders cleanly with all required data-testids, correct gating when no Phantom extension is present, no console errors or Buffer polyfill issues.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/backend/tests/backend_test.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py /api/metadata: image file is fully buffered into memory before size check; the 10MB cap is enforced after read. Acceptable but consider streaming/aborting early on large uploads to avoid memory spikes.",
+    "server.py: TradeRequest.tokenMetadata is a free-form dict with manual key check; a nested Pydantic model would give 422 details automatically.",
+    "server.py: /api/launches uses update_one upsert but response includes mongodb _id implicitly via dict(doc); the explicit doc.pop('_id', None) is correct — kept."
+  ],
+  "updated_files": ["/app/backend/tests/backend_test.py"],
+  "success_rate": {"backend": "100% (6/6)", "frontend": "100% (render + gating + no console errors)"},
+  "test_credentials": "none required",
+  "seed_data_creation": "Created one test launch doc with mint 'TEST_MINT_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' (upsert, no duplicates). Safe to leave or clean via mint prefix TEST_.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend endpoints: POST /api/metadata (multipart), POST /api/trade-local (returns octet-stream), POST /api/launches (attaches WOTS attestation chains=67, w=16), GET /api/launches. Real on-chain signing can't be automated (needs funded Phantom extension). Frontend wallet-button reads 'Get Phantom' in headless Chromium (no extension) and submit button disabled with 'Connect Phantom to launch'. pump.fun IPFS and PumpPortal are reachable from this environment.",
+  "rca of the issue": "n/a — no issues found"
+}

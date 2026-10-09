@@ -1,51 +1,45 @@
-# PRD — pqc.market clone (post-quantum coin launchpad)
+# PRD — pqc.market REAL launcher (pump.fun token launch, launch-only)
 
-## Original problem statement
-"https://pqc.market/ crawl though it api github i want sane fully functional" + "full working try to proxy api upstream" + "try upstream proxy ill take the risk".
-
-## What pqc.market is
-A pump.fun-style meme-coin launchpad with a post-quantum crypto theme. Every coin is "signed" by a
-one-time hash-based key (WOTS, w=16, SHA-256) with a Merkle-tree identity whose root is a registered
-on-chain anchor. Tagline: "Launch coins that survive Q-day."
+## Current scope (v2 — pivot)
+User asked to strip the app to **only the Launch page** and make it a **REAL on-chain launcher**:
+Phantom wallet signs in the browser, PumpPortal's Local Transaction API builds the create-token
+transaction, pump.fun mints on Solana **mainnet**. No private keys on the server.
 
 ## Architecture
-- **Frontend**: React (CRA), react-router, Tailwind, recharts, sonner. Dark terminal/bunker theme
-  (JetBrains Mono / Cabinet Grotesk / IBM Plex Sans, cyber-green #00FF41 + amber #FFB000, scanlines).
-- **Backend**: FastAPI proxy (`/api` prefix) + real Python PQC engine.
-- **DB**: MongoDB — `pump_coins` (persistent snapshot fallback), `launches`, `sim_trades`.
+- **Frontend** (React/CRA, launch-only, bunker/terminal theme):
+  - `src/pages/Launch.jsx` — the only page. Phantom connect, launch form, live terminal log, result screen with mint/tx/attestation + pump.fun & Solscan links.
+  - `src/context/WalletContext.jsx` — Phantom via `window.solana` (connect/disconnect/publicKey, eager onlyIfTrusted).
+  - `src/index.js` — Buffer/global polyfill; `craco.config.js` — webpack fallbacks + ProvidePlugin(Buffer) for @solana/web3.js.
+  - Signing: `tx.sign([mint])` then Phantom `signAndSendTransaction` (fallback `signTransaction` + `connection.sendRawTransaction`), confirmed via `REACT_APP_SOLANA_RPC_URL`.
+- **Backend** (FastAPI, proxy only — no signing):
+  - `POST /api/metadata` → proxies `https://pump.fun/api/ipfs` (multipart), returns `metadataUri`.
+  - `POST /api/trade-local` → proxies `https://pumpportal.fun/api/trade-local`, returns raw serialized VersionedTransaction bytes.
+  - `POST /api/launches` → records confirmed launch in Mongo + attaches a WOTS+Merkle attestation (`pqc.py`).
+  - `GET /api/launches` → recent launches.
+- **DB**: MongoDB `launches` (upsert by mint).
 
-### Upstream proxied (reverse-engineered, keys recovered from site JS)
-- pump.fun live feed: `frontend-api-v3.pump.fun/coins` (sorts: created_timestamp/market_cap/last_trade_timestamp).
-- pump.fun charts: `swap-api.pump.fun/v1/coins/{mint}/candles`.
-- pqc.market's own Supabase (anon key): tables `coins` (quantum), `launches`, `pools`, `trades`, `holders`.
-- Resilience: successful pump pulls are upserted into Mongo `pump_coins`; on 429 the feed serves the snapshot.
+## Integration
+PumpPortal Local Transaction API + Phantom browser signing (per integration_expert playbook).
+- No PumpPortal API key needed (local tx is keyless on their side).
+- `REACT_APP_SOLANA_RPC_URL` defaults to public `api.mainnet-beta.solana.com`.
 
-### Real PQC engine (`backend/pqc.py`)
-WOTS+ one-time signatures (67 chains = 64 msg digits + 3 checksum, w=16, SHA-256) compressed into a
-Merkle leaf climbing 8 levels to a root. `generate()` + `verify()` produce the 12-step in-browser
-verification; root matches (verified:true), confirmed by tests.
+## Implemented & tested (2026-06, v2) — backend 6/6, frontend render/gating 100%
+- Real IPFS metadata upload (verified: returns real ipfs.io URI).
+- Real PumpPortal create-tx (verified: returns tx bytes).
+- Launch record + WOTS attestation (chains=67, w=16).
+- Launch page renders, Phantom-gated, no runtime/Buffer errors.
 
-## API
-GET /api/stats · /api/coins (tab/sort/filter/offset/limit) · /api/coins/{mint} · /api/coins/{mint}/candles ·
-/api/coins/{mint}/attestation/verify · /api/coins/{mint}/trades · POST /api/coins/{mint}/trade ·
-POST /api/attestation/verify · POST /api/attestation/generate · POST /api/launch
+## NOT verifiable automatically (requires real funded Phantom wallet + mainnet SOL)
+- The actual Phantom sign + on-chain broadcast/confirm step. Logic follows the verified playbook but
+  a human must do a real launch to confirm end-to-end.
 
-## Implemented (2026-06) — v1, tested 100% (14/14 backend, frontend e2e)
-- Home: hero + animated WOTS terminal, stats bar, live feed with All/Standard/Quantum tabs, sort, graduated filter, load more.
-- Coin detail: live price chart (1H/1D/1W/1M), stats, bonding/graduated bar, demo buy/sell ledger + recent trades, attestation summary + animated verifier.
-- Launch flow: form → generates real WOTS+Merkle attestation → success screen → view coin.
-- Docs page explaining WOTS / Merkle / PQC.
-
-## Personas
-- Degen trader browsing/launching meme coins; crypto-curious user exploring post-quantum signatures.
-
-## Known limitations / MOCKED
-- **Trading is a demo off-chain ledger** (no real Solana settlement).
-- **Launches stored in Mongo** (no real on-chain mint); the attestation crypto itself is real.
-- pump.fun thumbnails may fail CORS (fallback initials render).
+## Known limitations / recommendations
+- Public mainnet RPC frequently rate-limits `sendTransaction`; using Phantom's `signAndSendTransaction`
+  (primary path) mitigates this. For reliability, set `REACT_APP_SOLANA_RPC_URL` to a Helius/QuickNode URL.
+- pump.fun `/api/ipfs` may intermittently 500; retry.
+- Mainnet only (pump.fun has no devnet) — launches cost real SOL.
 
 ## Backlog (P1/P2)
-- P1: Backend image proxy for coin thumbnails (remove CORS noise).
-- P1: Live 24h volume/holders for standard coins (needs extra pump endpoints).
-- P2: WebSocket live trade stream; wallet connect (Reown) for real launches; search bar; pagination on quantum tab.
-- P2: Cache size cap / lifespan handler; add `wallet` to LaunchReq for creator attribution.
+- P1: Dedicated/paid RPC env for reliable broadcast; surface clear "insufficient SOL" errors.
+- P2: "Your launches" list on the page (GET /api/launches); Pinata IPFS fallback if pump.fun IPFS fails.
+- P2: In-browser attestation verifier on the result screen.
