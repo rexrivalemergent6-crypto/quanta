@@ -1,45 +1,53 @@
-# PRD — pqc.market REAL launcher (pump.fun token launch, launch-only)
+# PRD — Winternitz Quantum Vault Wallet (v3)
 
-## Current scope (v2 — pivot)
-User asked to strip the app to **only the Launch page** and make it a **REAL on-chain launcher**:
-Phantom wallet signs in the browser, PumpPortal's Local Transaction API builds the create-token
-transaction, pump.fun mints on Solana **mainnet**. No private keys on the server.
+## Scope
+User asked to use github.com/blueshift-gg/solana-winternitz-vault tech to build a "create wallet"
+page where a vault's deposits/transfers are quantum-checked. User has no SOL to deploy, so we
+integrate an **already-deployed** Winternitz vault program (no deploy needed).
+
+## Key decisions / findings
+- The blueshift repo's program is NOT deployed anywhere, and this ARM sandbox can't build/deploy
+  Solana SBF (no aarch64 Anza CLI). So we use the **winternitz.io** deployment (rabb757/winternitz-vault):
+  - **mainnet program**: `13EtnfYGUH8NaGAnUpDTVgSsXoewNnULp7ESwHzQUANT` (confirmed executable)
+  - **devnet program**: `HBHP37mXs86kxn8i5twKiPkvtZWx2wDyUEUGVQAo72Da`
+- Built on **devnet by default** (free; user has no SOL). Mainnet is a one-line config switch.
+
+## The scheme (ported verbatim, self-tested)
+Winternitz OTS: 34 chains (32 msg + 2 checksum), 24-byte truncated Keccak-256, 816-byte signature,
+index-prefixed chain steps, pk_hash = keccak256(concat(chain ends)). Deterministic per-nonce seed
+`keccak("WNTR:SEED"||master||u64(nonce))` so the whole wallet restores from one 32-byte master seed.
+`src/lib/wots.js` is a line-for-line port of their Rust-verified client; a Node roundtrip + tamper
+test passes.
 
 ## Architecture
-- **Frontend** (React/CRA, launch-only, bunker/terminal theme):
-  - `src/pages/Launch.jsx` — the only page. Phantom connect, launch form, live terminal log, result screen with mint/tx/attestation + pump.fun & Solscan links.
-  - `src/context/WalletContext.jsx` — Phantom via `window.solana` (connect/disconnect/publicKey, eager onlyIfTrusted).
-  - `src/index.js` — Buffer/global polyfill; `craco.config.js` — webpack fallbacks + ProvidePlugin(Buffer) for @solana/web3.js.
-  - Signing: `tx.sign([mint])` then Phantom `signAndSendTransaction` (fallback `signTransaction` + `connection.sendRawTransaction`), confirmed via `REACT_APP_SOLANA_RPC_URL`.
-- **Backend** (FastAPI, proxy only — no signing):
-  - `POST /api/metadata` → proxies `https://pump.fun/api/ipfs` (multipart), returns `metadataUri`.
-  - `POST /api/trade-local` → proxies `https://pumpportal.fun/api/trade-local`, returns raw serialized VersionedTransaction bytes.
-  - `POST /api/launches` → records confirmed launch in Mongo + attaches a WOTS+Merkle attestation (`pqc.py`).
-  - `GET /api/launches` → recent launches.
-- **DB**: MongoDB `launches` (upsert by mint).
+- 100% client-side dApp (no backend needed). Phantom is the fee payer & signer.
+- `src/lib/wots.js` — WOTS crypto.
+- `src/lib/vault.js` — program IDs, PDA (`["vault", pk0]`), digests, instruction builders
+  (init=0, mint=1, transfer=2), Phantom sign+send, createVault / depositMint / transferOut, treasury balance.
+- `src/context/WalletContext.jsx` — Phantom via window.solana.
+- `src/pages/VaultWallet.jsx` — create vault, deposit (quantum mint to treasury), transfer (quantum),
+  key-rotation display (nonce + active pk), on-chain receipts, master-seed backup/download.
 
-## Integration
-PumpPortal Local Transaction API + Phantom browser signing (per integration_expert playbook).
-- No PumpPortal API key needed (local tx is keyless on their side).
-- `REACT_APP_SOLANA_RPC_URL` defaults to public `api.mainnet-beta.solana.com`.
+## Flows (all real on-chain, devnet)
+- **Create vault**: new SPL mint (authority = vault PDA) + open vault (tag 0). Phantom pays rent.
+- **Deposit**: quantum-signed MINT (tag 1) into the vault's treasury ATA; key rotates (nonce++).
+- **Transfer**: quantum-signed TRANSFER (tag 2) treasury → recipient ATA; key rotates.
+- Each spend's digest covers domain+vaultId+nonce+source+dest+amount+nextPkHash; program walks the
+  hash chains (~695k CU) and checks the stored pk_hash — the quantum check.
 
-## Implemented & tested (2026-06, v2) — backend 6/6, frontend render/gating 100%
-- Real IPFS metadata upload (verified: returns real ipfs.io URI).
-- Real PumpPortal create-tx (verified: returns tx bytes).
-- Launch record + WOTS attestation (chains=67, w=16).
-- Launch page renders, Phantom-gated, no runtime/Buffer errors.
+## Verified
+- Compiles; page renders; Phantom-gated; Buffer polyfilled; no runtime errors.
+- WOTS self-test (determinism, 816-byte sig, verify roundtrip, tamper rejection) passes.
+- Target program confirmed executable on devnet & mainnet.
 
-## NOT verifiable automatically (requires real funded Phantom wallet + mainnet SOL)
-- The actual Phantom sign + on-chain broadcast/confirm step. Logic follows the verified playbook but
-  a human must do a real launch to confirm end-to-end.
+## NOT verifiable in this environment (needs human)
+- The actual Phantom sign + on-chain submit: no wallet extension here and devnet airdrop is
+  rate-limited from this IP. User runs it with Phantom on devnet + faucet SOL.
 
-## Known limitations / recommendations
-- Public mainnet RPC frequently rate-limits `sendTransaction`; using Phantom's `signAndSendTransaction`
-  (primary path) mitigates this. For reliability, set `REACT_APP_SOLANA_RPC_URL` to a Helius/QuickNode URL.
-- pump.fun `/api/ipfs` may intermittently 500; retry.
-- Mainnet only (pump.fun has no devnet) — launches cost real SOL.
+## Go mainnet
+Set `REACT_APP_WNTR_NETWORK=mainnet` and a mainnet `REACT_APP_SOLANA_RPC_URL`; the mainnet program
+(`13Etn…QUANT`) is already the default. Requires real SOL for rent + fees.
 
-## Backlog (P1/P2)
-- P1: Dedicated/paid RPC env for reliable broadcast; surface clear "insufficient SOL" errors.
-- P2: "Your launches" list on the page (GET /api/launches); Pinata IPFS fallback if pump.fun IPFS fails.
-- P2: In-browser attestation verifier on the result screen.
+## Backlog
+- P1: Live devnet E2E once funded; show treasury + recipient balances after each spend.
+- P2: Restore-from-seed UI; wSOL deposit path (wrap real SOL into the vault); NFT/execute (tag 3) support.

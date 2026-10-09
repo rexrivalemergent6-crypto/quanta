@@ -1,13 +1,13 @@
 import "@/App.css";
 import { Toaster } from "sonner";
 import { WalletProvider } from "@/context/WalletContext";
-import Launch from "@/pages/Launch";
+import VaultWallet from "@/pages/VaultWallet";
 
 function App() {
   return (
     <div className="App min-h-screen">
       <WalletProvider>
-        <Launch />
+        <VaultWallet />
       </WalletProvider>
       <Toaster
         position="bottom-right"
