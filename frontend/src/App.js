@@ -1,14 +1,21 @@
 import "@/App.css";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Toaster } from "sonner";
 import { WalletProvider } from "@/context/WalletContext";
 import VaultWallet from "@/pages/VaultWallet";
+import SwapPage from "@/pages/SwapPage";
 
 function App() {
   return (
     <div className="App min-h-screen">
-      <WalletProvider>
-        <VaultWallet />
-      </WalletProvider>
+      <BrowserRouter>
+        <WalletProvider>
+          <Routes>
+            <Route path="/" element={<VaultWallet />} />
+            <Route path="/swap" element={<SwapPage />} />
+          </Routes>
+        </WalletProvider>
+      </BrowserRouter>
       <Toaster
         position="bottom-right"
         theme="dark"

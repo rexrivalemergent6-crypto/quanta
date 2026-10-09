@@ -138,6 +138,108 @@ async def list_launches(limit: int = 20):
     return {"launches": docs}
 
 
+# --------------------------------------------------------------------------
+# DarkSwap private-routing passthrough proxy (server-side -> avoids CORS)
+#   /api/ds/<path>  ->  https://darkswap.app/api/swap/<path>
+# --------------------------------------------------------------------------
+from fastapi import Request
+import asyncio
+import time as _time
+
+DS_BASE = "https://darkswap.app/api/swap"
+DS_HEADERS = {
+    "accept": "application/json",
+    "accept-language": "en-US,en;q=0.9",
+    "content-type": "application/json",
+    "origin": "https://darkswap.app",
+    "referer": "https://darkswap.app/swap",
+    "user-agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                   "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"),
+}
+DS_ALLOWED = ("tokens", "chains", "quotes", "orders", "near")
+_DS_RETRY = {429, 500, 502, 503, 504}
+_ds_client = None
+_ds_cache = {}
+
+
+def _ds_get_client():
+    global _ds_client
+    if _ds_client is None or _ds_client.is_closed:
+        _ds_client = httpx.AsyncClient(
+            timeout=httpx.Timeout(45.0, connect=10.0),
+            limits=httpx.Limits(max_keepalive_connections=20, max_connections=50, keepalive_expiry=30.0),
+            headers=DS_HEADERS, follow_redirects=True)
+    return _ds_client
+
+
+def _ds_allowed(path):
+    return path.split("/")[0] in DS_ALLOWED
+
+
+def _ds_ttl(path):
+    base = path.split("?")[0]
+    if base.endswith("tokens") or base == "tokens":
+        return 60
+    if base.endswith("chains") or base == "chains":
+        return 300
+    return 0
+
+
+async def _ds_request(method, url, params=None, content=None, retries=2):
+    client = _ds_get_client()
+    resp = None
+    for attempt in range(retries + 1):
+        try:
+            resp = await client.request(method, url, params=params, content=content)
+            if resp.status_code in _DS_RETRY and attempt < retries:
+                await asyncio.sleep(0.4 * (2 ** attempt))
+                continue
+            return resp
+        except httpx.HTTPError:
+            if attempt < retries:
+                await asyncio.sleep(0.4 * (2 ** attempt))
+                continue
+            raise
+    return resp
+
+
+@api_router.get("/ds/{path:path}")
+async def ds_proxy_get(path: str, request: Request):
+    if not _ds_allowed(path):
+        return Response('{"error":"path not allowed"}', 403, media_type="application/json")
+    params = dict(request.query_params)
+    ttl = _ds_ttl(path)
+    key = f"GET {path}?{sorted(params.items())}"
+    now = _time.time()
+    if ttl and key in _ds_cache and now - _ds_cache[key][0] < ttl:
+        _, status, body = _ds_cache[key]
+        return Response(body, status, media_type="application/json")
+    try:
+        r = await _ds_request("GET", f"{DS_BASE}/{path}", params=params)
+    except httpx.HTTPError as e:
+        logger.error(f"ds GET {path}: {e}")
+        if key in _ds_cache:
+            _, status, body = _ds_cache[key]
+            return Response(body, status, media_type="application/json")
+        return Response('{"error":"upstream unreachable"}', 502, media_type="application/json")
+    if ttl and r.status_code == 200:
+        _ds_cache[key] = (now, r.status_code, r.content)
+    return Response(r.content, r.status_code, media_type="application/json")
+
+
+@api_router.post("/ds/{path:path}")
+async def ds_proxy_post(path: str, request: Request):
+    if not _ds_allowed(path):
+        return Response('{"error":"path not allowed"}', 403, media_type="application/json")
+    body = await request.body()
+    try:
+        r = await _ds_request("POST", f"{DS_BASE}/{path}", content=body)
+        return Response(r.content, r.status_code, media_type="application/json")
+    except httpx.HTTPError as e:
+        logger.error(f"ds POST {path}: {e}")
+        return Response('{"error":"upstream unreachable"}', 502, media_type="application/json")
+
+
 app.include_router(api_router)
 app.add_middleware(
     CORSMiddleware,

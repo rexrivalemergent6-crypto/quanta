@@ -51,3 +51,17 @@ Set `REACT_APP_WNTR_NETWORK=mainnet` and a mainnet `REACT_APP_SOLANA_RPC_URL`; t
 ## Backlog
 - P1: Live devnet E2E once funded; show treasury + recipient balances after each spend.
 - P2: Restore-from-seed UI; wSOL deposit path (wrap real SOL into the vault); NFT/execute (tag 3) support.
+
+## v4 — Private-routing Swap page (added)
+From github.com/rexrivalinsta-art/new-dark ("darkinator"): a no-KYC cross-chain private swap.
+- Backend: faithful `/api/ds/{path}` passthrough proxy → `https://darkswap.app/api/swap/{path}`
+  (GET+POST, retry/backoff, TTL cache). Confirmed wired (returns live upstream responses).
+- Frontend `src/lib/swap.js`: live proxy calls + a realistic local engine fallback (upstream gates
+  datacenter IPs, same as pump.fun). Two routing engines: Private route (HoudiniSwap) / Privacy swap
+  (NEAR Intents 1Click).
+- `src/pages/SwapPage.jsx`: engine toggle, cross-chain asset selectors (search), live quote
+  (rate/fee/ETA/limits/USD), flip, destination (+ refund for privacy), order panel with one-time
+  deposit address + memo and a status timeline. Routing: `/` Vault, `/swap` Swap (nav tabs).
+- Verified via UI: quote renders, order created (privacy engine) with deposit address + memo + status.
+- Note: when darkswap.app is unreachable from the host, quotes/orders use the local engine (deposit
+  addresses are illustrative); the proxy activates live routing automatically where reachable.

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { Link } from "react-router-dom";
 import { useWallet } from "@/context/WalletContext";
 import {
   getConnection, createVault, depositMint, transferOut, readVault,
@@ -139,6 +140,11 @@ export default function VaultWallet() {
               <span className="ml-2 hidden rounded-none border border-primary/30 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.2em] text-primary sm:inline">{NETWORK}</span>
             </span>
           </div>
+          <div className="flex items-center gap-2">
+            <nav className="hidden items-center gap-1 sm:flex">
+              <Link to="/" data-testid="nav-vault" className="px-3 py-2 font-mono text-xs uppercase tracking-[0.15em] text-primary text-glow">Vault</Link>
+              <Link to="/swap" data-testid="nav-swap" className="px-3 py-2 font-mono text-xs uppercase tracking-[0.15em] text-muted-foreground transition-colors hover:text-primary">Swap</Link>
+            </nav>
           {connected ? (
             <button data-testid="wallet-button" onClick={disconnect} className="flex items-center gap-2 border border-primary/40 bg-primary/5 px-3 py-2 font-mono text-xs text-primary transition-colors hover:bg-primary/10">
               <span className="inline-block h-2 w-2 animate-pulse bg-primary" /> {short(publicKey)} · {sol != null ? `${sol.toFixed(2)} SOL` : "…"} <X size={12} />
@@ -148,6 +154,7 @@ export default function VaultWallet() {
               {connecting ? <Loader2 size={14} className="animate-spin" /> : <Wallet size={14} />}{hasPhantom ? "Connect Phantom" : "Get Phantom"}
             </button>
           )}
+          </div>
         </div>
       </header>
 
