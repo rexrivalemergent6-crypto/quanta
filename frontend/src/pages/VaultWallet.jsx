@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { Link } from "react-router-dom";
 import { useWallet } from "@/context/WalletContext";
+import { TopTabs } from "@/components/TopTabs";
 import {
   getConnection, createVault, depositMint, transferOut, readVault,
   treasuryAta, tokenBalance, explorerTx, explorerAddr, NETWORK, PROGRAM_ID,
@@ -131,32 +131,7 @@ export default function VaultWallet() {
 
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur-md">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center border border-primary/40 bg-primary/10 text-primary"><Shield size={16} /></div>
-            <span className="font-mono text-base font-bold tracking-tight">
-              winternitz<span className="text-primary text-glow">.vault</span>
-              <span className="ml-2 hidden rounded-none border border-primary/30 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.2em] text-primary sm:inline">{NETWORK}</span>
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <nav className="hidden items-center gap-1 sm:flex">
-              <Link to="/" data-testid="nav-vault" className="px-3 py-2 font-mono text-xs uppercase tracking-[0.15em] text-primary text-glow">Vault</Link>
-              <Link to="/swap" data-testid="nav-swap" className="px-3 py-2 font-mono text-xs uppercase tracking-[0.15em] text-muted-foreground transition-colors hover:text-primary">Swap</Link>
-            </nav>
-          {connected ? (
-            <button data-testid="wallet-button" onClick={disconnect} className="flex items-center gap-2 border border-primary/40 bg-primary/5 px-3 py-2 font-mono text-xs text-primary transition-colors hover:bg-primary/10">
-              <span className="inline-block h-2 w-2 animate-pulse bg-primary" /> {short(publicKey)} · {sol != null ? `${sol.toFixed(2)} SOL` : "…"} <X size={12} />
-            </button>
-          ) : (
-            <button data-testid="wallet-button" onClick={connectWallet} disabled={connecting} className="flex items-center gap-2 border border-primary bg-primary px-4 py-2 font-mono text-xs font-bold uppercase tracking-[0.15em] text-black transition-all hover:bg-primary/80 disabled:opacity-50">
-              {connecting ? <Loader2 size={14} className="animate-spin" /> : <Wallet size={14} />}{hasPhantom ? "Connect Phantom" : "Get Phantom"}
-            </button>
-          )}
-          </div>
-        </div>
-      </header>
+      <TopTabs brand="winternitz" accent=".vault" />
 
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
         <div className="flex items-center gap-2 font-mono text-xs uppercase tracking-[0.2em] text-primary"><KeyRound size={14} /> Winternitz one-time-signature vault · live program</div>

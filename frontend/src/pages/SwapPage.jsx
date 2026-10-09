@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Link } from "react-router-dom";
+import { TopTabs } from "@/components/TopTabs";
 import {
   ASSETS, METHODS, iconUrl, label, quoteFor, makeOrder, saveOrder,
 } from "@/lib/swap";
@@ -27,8 +28,7 @@ const Coin = ({ a, size = 20 }) => {
 
 const TabNav = () => (
   <nav className="flex items-center gap-1">
-    <Link to="/" data-testid="nav-vault" className="px-3 py-2 font-mono text-xs uppercase tracking-[0.15em] text-muted-foreground transition-colors hover:text-primary">Vault</Link>
-    <Link to="/swap" data-testid="nav-swap" className="px-3 py-2 font-mono text-xs uppercase tracking-[0.15em] text-primary text-glow">Swap</Link>
+    <Link to="/" className="px-3 py-2 font-mono text-xs uppercase tracking-[0.15em] text-muted-foreground hover:text-primary">Vault</Link>
   </nav>
 );
 
@@ -123,15 +123,7 @@ export default function SwapPage() {
 
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur-md">
-        <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-4 sm:px-6">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center border border-primary/40 bg-primary/10 text-primary"><Shield size={16} /></div>
-            <span className="font-mono text-base font-bold tracking-tight">dark<span className="text-primary text-glow">swap</span></span>
-          </div>
-          <TabNav />
-        </div>
-      </header>
+      <TopTabs brand="dark" accent="swap" wallet={false} />
 
       <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
         <div className="flex items-center gap-2 font-mono text-xs uppercase tracking-[0.2em] text-primary"><Lock size={14} /> Private routing · no account · no KYC</div>

@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Toaster } from "sonner";
 import { WalletProvider } from "@/context/WalletContext";
 import VaultWallet from "@/pages/VaultWallet";
+import Launch from "@/pages/Launch";
 import SwapPage from "@/pages/SwapPage";
 
 function App() {
@@ -12,6 +13,7 @@ function App() {
         <WalletProvider>
           <Routes>
             <Route path="/" element={<VaultWallet />} />
+            <Route path="/launch" element={<Launch />} />
             <Route path="/swap" element={<SwapPage />} />
           </Routes>
         </WalletProvider>

@@ -52,7 +52,18 @@ Set `REACT_APP_WNTR_NETWORK=mainnet` and a mainnet `REACT_APP_SOLANA_RPC_URL`; t
 - P1: Live devnet E2E once funded; show treasury + recipient balances after each spend.
 - P2: Restore-from-seed UI; wSOL deposit path (wrap real SOL into the vault); NFT/execute (tag 3) support.
 
-## v4 — Private-routing Swap page (added)
+## v5 — Unified 3-page app, MAINNET
+Three pages behind a shared `TopTabs` nav (Vault | Launch | Swap), all mainnet:
+- `/` **Vault** — Winternitz WOTS vault on the mainnet program `13Etn…QUANT` (confirmed executable).
+  `REACT_APP_WNTR_NETWORK=mainnet`, `REACT_APP_SOLANA_RPC_URL=api.mainnet-beta.solana.com`.
+- `/launch` **Quantum token launch** — real pump.fun launch via Phantom + PumpPortal (mainnet),
+  backend proxies IPFS + PumpPortal; WOTS+Merkle attestation attached. (`src/pages/Launch.jsx`)
+- `/swap` **Private routing swap** — darkswap.app proxy (`/api/ds`) + local engine fallback.
+- Shared `src/components/TopTabs.jsx` (brand, mainnet badge, Phantom connect).
+- All three are genuinely mainnet (vault program live on mainnet; pump.fun is mainnet; swap routes
+  real chains). Using Vault/Launch spends real SOL (rent + fees) — recommend a Helius/QuickNode RPC
+  for reliability. Swap uses live routing where darkswap allows the host, else the labeled fallback.
+- Verified: all three pages render, nav routing works, all data-testids present.
 From github.com/rexrivalinsta-art/new-dark ("darkinator"): a no-KYC cross-chain private swap.
 - Backend: faithful `/api/ds/{path}` passthrough proxy → `https://darkswap.app/api/swap/{path}`
   (GET+POST, retry/backoff, TTL cache). Confirmed wired (returns live upstream responses).
