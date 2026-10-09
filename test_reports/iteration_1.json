@@ -1,0 +1,28 @@
+{
+  "summary": "Comprehensive e2e testing of pqc.market clone. Backend: 14/14 pytest tests passed covering /api/stats, /api/coins (all/standard/quantum/filter/4 sorts), /api/coins/{mint} detail+attestation, /api/coins/{mint}/candles, /api/coins/{mint}/attestation/verify (core PQC correctness - verified:true with computed_root==expected_root and exactly 12 steps), POST trade + fetch trades, POST /api/launch + retrieve. Frontend: Home feed populated (52 cards), tabs/sort/filter/load-more visible, tab-quantum shows only quantum coins (4), coin card click navigates to detail, PriceChart renders with 4 timeframe buttons, AttestationPanel animates to 12-step verified OK state showing 'MERKLE ROOT MATCHES REGISTERED ANCHOR', trade-panel buy submit works and trade appears in Recent Trades, Launch page submits and view-coin-btn navigates to new /coin/q{...} page with attestation, Docs page renders.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "CoinDetail / all pages", "issues": ["Many external coin thumbnail images (pump.fun IPFS CDN) fail with ERR_BLOCKED_BY_RESPONSE.NotSameOrigin cross-origin errors in console. Non-blocking (fallbacks render) but produces noisy console. Consider proxying images through backend or adding referrerPolicy='no-referrer' / crossOrigin='anonymous' attributes on <img> tags."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/backend_test.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py: use of `filter` as a parameter name shadows the Python builtin — minor, functional but a lint smell.",
+    "server.py: TradeReq.wallet uses hasattr(body, 'wallet') pattern in /launch — LaunchReq has no wallet field so coin.creator is always 'pqc-launcher'. If wallet attribution is intended for launches, add wallet to LaunchReq.",
+    "server.py in-process `_cache` dict grows unbounded — add size cap or TTL cleanup for long uptime.",
+    "server.py: @app.on_event('shutdown') is deprecated in modern FastAPI; consider lifespan context.",
+    "No data-testid confirmed on reverify-btn / copy-mint / nav-launch-btn / hero-launch-btn / hero-docs-btn in this run (not explicitly tested) — main agent may want to verify these exist."
+  ],
+  "updated_files": ["/app/backend/tests/backend_test.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "n/a (public app, no auth)",
+  "seed_data_creation": "Launch tests created 1 TEST_PQCoin doc in db.launches and a sim_trade doc for the reference mint (demo ledger).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All core features work. Backend pytest suite at /app/backend/tests/backend_test.py is a stable regression (14 tests, ~5s). The critical attestation-verify endpoint consistently returns verified:true with 12 steps and matching Merkle root — this is the key PQC correctness check. Frontend coin thumbnails from pump.fun fail CORS but non-blocking.",
+  "rca of the issue": "No bugs found."
+}

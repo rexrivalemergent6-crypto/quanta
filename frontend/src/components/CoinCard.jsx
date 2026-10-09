@@ -33,6 +33,7 @@ export const CoinCard = ({ coin }) => {
               src={coin.image}
               alt={coin.symbol}
               loading="lazy"
+              referrerPolicy="no-referrer"
               className="h-full w-full object-cover"
               onError={(e) => {
                 e.currentTarget.style.display = "none";

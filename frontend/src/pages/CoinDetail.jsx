@@ -81,7 +81,7 @@ export default function CoinDetail() {
       <div className="flex flex-col gap-4 border-b border-border pb-6 sm:flex-row sm:items-center">
         <div className="h-16 w-16 shrink-0 overflow-hidden border border-border bg-secondary">
           {c.image ? (
-            <img src={c.image} alt={c.symbol} className="h-full w-full object-cover" onError={(e) => (e.currentTarget.style.display = "none")} />
+            <img src={c.image} alt={c.symbol} referrerPolicy="no-referrer" className="h-full w-full object-cover" onError={(e) => (e.currentTarget.style.display = "none")} />
           ) : (
             <div className="flex h-full w-full items-center justify-center font-mono text-muted-foreground">{c.symbol?.slice(0, 3)}</div>
           )}
